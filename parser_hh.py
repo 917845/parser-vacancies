@@ -4,12 +4,16 @@ from bs4 import BeautifulSoup
 import re
 
 
-HH_SEARCH_MAX_PAGES = 1
+HH_SEARCH_MAX_PAGES = 80
 
 
 def get_json(url, params=None):
-    params = params or {}
-    return requests.get(url, params=params, timeout=10).json()
+    while True:
+        try:
+            params = params or {}
+            return requests.get(url, params=params, timeout=(1000000, 1000000)).json()
+        except (TimeoutError, ConnectionError):
+            continue
 
 
 def extract_urls_of_page_vacancy_from_hh(query='разработчик'):
@@ -23,12 +27,11 @@ def extract_urls_of_page_vacancy_from_hh(query='разработчик'):
         'page': 0
     }
 
-
     for page_number in range(HH_SEARCH_MAX_PAGES):
         url_params['page'] = page_number + 1
         url_enumeration = get_json(url_basic, params=url_params)
         
-        if 'items' in url_enumeration.keys():
+        if url_enumeration != None:
             if not url_enumeration['items']:
                 break
             for vacancy in url_enumeration['items']:
@@ -291,82 +294,18 @@ def get_description_position():
             'alternate_url': get_json(urls_position[number_position])['alternate_url'],
             'key_skills': get_key_skills(get_json(urls_position[number_position])),
             'api_url': urls_position[number_position],
-            #'requirements': get_listing_requirements(get_json(urls_position[number_position])),
+            'requirements': get_listing_requirements(get_json(urls_position[number_position])),
             # 'station_name': get_metro(get_json(urls_position[number_position])),
-            # 'salary': get_salary(get_json(urls_position[number_position])),
+            'salary': get_salary(get_json(urls_position[number_position])),
             # 'experience': get_experience(get_json(urls_position[number_position])),
             # 'employer_url': get_json(urls_position[number_position])['employer']['url']
         }
         list_description_vacancy.append(description_vacancy)
         
-    return list_description_vacancy
+    with open('json-2.txt', 'w', encoding='utf-8') as text_file:
 
-
-def reading_users_skills():
-    
-    list_input_skill = []
-    while True:
-        user_skill = input('Введите ваш навык: ') 
-        if user_skill == 'no':
-            break
-        else:
-            list_input_skill.append(user_skill)
-
-    result_vacancy = {}
-    listing_description_position = get_description_position()
-    for description_position in listing_description_position:
-        set_key_skills = description_position['key_skills']
-        index_vacancy = 0
-        for skill in set_key_skills:        
-            for input_skill in list_input_skill:
-                if input_skill in skill:
-                    index_vacancy += 1
-                    result_vacancy[description_position['api_url']] = index_vacancy
-
-
-    return result_vacancy
-
-
-def make_search_result():
-    dict_users_skills = reading_users_skills()
-    index_users_skills = dict_users_skills.values()
-    list_index_users_skills = []
-    api_search_result = []
-    for index in index_users_skills:
-        list_index_users_skills.append(index)
-    list_index_users_skills.sort()
-
-    for key in dict_users_skills:
-        listu = [
-        list_index_users_skills[-1],
-        list_index_users_skills[-2],
-        list_index_users_skills[-3]
-        ]
-
-        for max_index in listu:
-            if max_index > 1:
-                if dict_users_skills[key] == max_index:
-                    api_search_result.append(key)
-                    break
-
-    return api_search_result
-
-
-def print_search_result():
-    data_description_vacancy = get_description_position()
-    final_search_result_list_api_urls = make_search_result()
-    print_final_result =[]
-    if len(final_search_result_list_api_urls) > 0:
-        for api_url_result in final_search_result_list_api_urls:
-            for vacancy_description in data_description_vacancy:
-                if api_url_result == vacancy_description['api_url']:
-                    print_final_result.append(vacancy_description)
-
-        return print_final_result
-    else:
-        return 'Нет подходящих вакансий'
-
+        json.dump(list_description_vacancy, text_file)
 
 if __name__ == '__main__':
-    print(print_search_result())
+    print(get_description_position())
     
