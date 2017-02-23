@@ -4,14 +4,14 @@ from bs4 import BeautifulSoup
 import re
 
 
-HH_SEARCH_MAX_PAGES = 80
+HH_SEARCH_MAX_PAGES = 100
 
 
 def get_json(url, params=None):
     while True:
         try:
             params = params or {}
-            return requests.get(url, params=params, timeout=(1000000, 1000000)).json()
+            return requests.get(url, params=params, timeout=(1, 10)).json()
         except (TimeoutError, ConnectionError):
             continue
 
@@ -23,17 +23,16 @@ def extract_urls_of_page_vacancy_from_hh(query='разработчик'):
     url_params = {
         'text': query,
         'area': 1,
-        'items_on_page': 500,
+        'items_on_page': 20,
         'page': 0
     }
 
     for page_number in range(HH_SEARCH_MAX_PAGES):
+        print(int(page_number/HH_SEARCH_MAX_PAGES*100))
         url_params['page'] = page_number + 1
         url_enumeration = get_json(url_basic, params=url_params)
-        
-        if url_enumeration != None:
-            if not url_enumeration['items']:
-                break
+
+        if ('items' in url_enumeration.keys() and url_enumeration != None):
             for vacancy in url_enumeration['items']:
                 urls_vacancies.append(vacancy['url'])
         else:
@@ -70,10 +69,10 @@ def get_key_skills(vacancy_info):
     key_skills = vacancy_info['key_skills']
     list_skills = []
     if len(key_skills) > 0:
-        for i in range (len(key_skills)):
-            j = key_skills[i]['name']
-            j = j.lower()
-            list_skills.append(j)
+        for number_skill in range (len(key_skills)):
+            skill = key_skills[number_skill]['name']
+            skill = skill.lower()
+            list_skills.append(skill)
     else:
         list_skills_from_description = [
             '.net framework',
@@ -88,10 +87,12 @@ def get_key_skills(vacancy_info):
             'android',
             'angularjs',
             'api',
+            'bitbucket',
             'bootstrap',
             'c#',
             'c# .net',
             'c++',
+            'celery',
             'css',
             'css3',
             'django',
@@ -116,6 +117,7 @@ def get_key_skills(vacancy_info):
             'hibernate',
             'objective-c',
             'oracle',
+            'perl',
             'php',
             'postgresql'
             'python',
@@ -128,6 +130,7 @@ def get_key_skills(vacancy_info):
             'spring framework',
             'stl',
             'swift',
+            'tornado',
             'usability',
             'visual studio',
             'xcode',
@@ -137,11 +140,14 @@ def get_key_skills(vacancy_info):
             ]
 
         key_skills_from_description = get_listing_requirements(vacancy_info)
+        
         for requirement in key_skills_from_description:
             for skills_from_description in list_skills_from_description:
                 if skills_from_description in requirement:
                     list_skills.append(skills_from_description)
+    
     list_skills = list(set(list_skills))
+    
     return list_skills
 
 
@@ -149,31 +155,32 @@ def selection_requirements(vacancies_info):
 
     list_requirements = [
         'будет плюсом',
-        'Ваш профиль',
-        'Вы нам подходите',
-        'Знания',
+        'ваш профиль',
+        'вы нам подходите',
+        'знания',
         'кандидата мы хотим'
-        'Кого мы ищем'
-        'Мы ожидаем',
+        'кого мы ищем'
+        'мы ожидаем',
         'навыки',
-        'Наш идеальный кандидат',
-        'Наши пожелания',
-        'Наши хотелки',
-        'Необходимые знания',
-        'Нужно знать',
-        'Обязательно'
-        'От вас мы ждем',
-        'От кандидата мы ждем',
+        'наш идеальный кандидат',
+        'наши пожелания',
+        'наши хотелки',
+        'необходимые знания',
+        'нужно знать',
+        'kбязательно'
+        'от вас мы ждем',
+        'от кандидата мы ждем',
         'плюсом будет',
-        'Пожелания',
-        'С какими задачами будет работать',
+        'пожелания',
+        'с какими задачами будет работать',
         'соответствовать следующим требованиям',
-        'Требования',
-        'у Вас имеется',
-        'Экспертиза'
+        'требования',
+        'у вас имеется',
+        'экспертиза'
         ]
 
     result = vacancies_info.split('<strong>')
+    
     for object_i in result:
         object_i = object_i.split('</strong>')
         for object_j in list_requirements:
@@ -218,6 +225,7 @@ def cleaning_text(element):
 
     for element_exclude in exclusion_list:
         text = re.sub(element_exclude, '', text)
+
     if len(text) > 1:
         if text[0] == ' ':
             text = text[1:]
@@ -233,6 +241,7 @@ def cleaning_text(element):
 
 def get_listing_requirements(vacancy_info):
     requirement = vacancy_info['description']
+    requirement = requirement.lower()
     listing_requirements = []
 
     requirement = selection_requirements(requirement)
@@ -285,9 +294,10 @@ def get_listing_requirements(vacancy_info):
 def get_description_position():
     urls_position = extract_urls_of_page_vacancy_from_hh()
     list_description_vacancy = []
+    
     for number_position in range(len(urls_position)):
         print(int(number_position/(len(urls_position))*100))
-        
+
         description_vacancy = {
             'id_vacancy': number_position + 1,
             'name_vacancy': get_json(urls_position[number_position])['name'],
@@ -300,6 +310,7 @@ def get_description_position():
             # 'experience': get_experience(get_json(urls_position[number_position])),
             # 'employer_url': get_json(urls_position[number_position])['employer']['url']
         }
+        
         list_description_vacancy.append(description_vacancy)
         
     with open('json-2.txt', 'w', encoding='utf-8') as text_file:
@@ -307,5 +318,5 @@ def get_description_position():
         json.dump(list_description_vacancy, text_file)
 
 if __name__ == '__main__':
-    print(get_description_position())
+    get_description_position()
     
